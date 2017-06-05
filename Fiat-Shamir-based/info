@@ -1,0 +1,3 @@
+Here we look at Fiat-Shamir framework based Digital Signatures namely:
+ 1) Lyubashevsky's - unimodal Gaussian based rejection sampling
+ 2) Improved rejection sampling employing the Bimodal Gaussian
