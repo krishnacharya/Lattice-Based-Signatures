@@ -21,12 +21,32 @@ def crypt_secure_randint(r):
 
 def crypt_secure_matrix(r, n, m):
 	'''	
-		outputs: A matrix with dimension nxm and integer elements in [-r,r]
+		outputs: A numpy array with dimension nxm and integer elements in [-r,r]
 	'''
-	return np.matrix([[crypt_secure_randint(r) for j in range(m)] for i in range(n)])
+	return np.array([[crypt_secure_randint(r) for j in range(m)] for i in range(n)])
 
 def hash_to_ternary():
-	pass	
+	pass
+
+def to_integer_ring(ele, q):
+	'''
+		input:
+		q: 	 is a prime of polynomial size
+		ele: integer to be reduced mod q to the range [-(q-1)/2,(q-1)/2]
+			 such that it still belongs to the same congruence modulo class
+		output:
+			element in the ring Zq
+	'''
+	return (ele % q) if (ele % q <= (q-1)/2) else (ele % q) - q
+
+def matrix_to_Zq(M, q):
+	'''
+		to_integer_ring of each element in M a numpy array
+	'''	
+	for i in range(M.shape[0]):
+		for j in range(M.shape[1]):
+			M[i][j] = to_integer_ring(M[i][j], q)
+	return M						
 
 def KeyGen(n, m, k, d, q):
 	'''
@@ -34,7 +54,7 @@ def KeyGen(n, m, k, d, q):
 		q : polynomial size prime number
 		n, m, k : dimensions specifiers
 		d : SIS parameter, hardest instances are where d ~ q^(n/m)
-
+		d < q
 		output:
 		Signing Key S :  Matrix of dimension mxk with coefficients in [-d.d]
 		Verification Key A : Matrix of dimension nxm with coefficients from [-(q-1)/2,(q-1)/2]
@@ -43,7 +63,7 @@ def KeyGen(n, m, k, d, q):
 	'''
 	S = crypt_secure_matrix(d, m, k)
 	A = crypt_secure_matrix((q-1)/2, n, m)
-	T = np.matmul(A, S)
+	T = matrix_to_Zq(np.matmul(A, S), q)	
 	return S, A, T
 
 def Sign():
