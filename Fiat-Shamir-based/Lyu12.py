@@ -7,26 +7,10 @@ employs Unimodal Gaussian for Rejection sampling
 based on Vadim Lyubachevsky's Eurocrypt 2012 paper.
 Parameters of the signature scheme are based on SIS q,n,m,d
 '''
-from random import SystemRandom
 import numpy as np
-def crypt_secure_randint(r):
-	'''
-		input: 
-		r : the range in which we want the random integer [-r,r]
-		output:
-		a cryptographiically secure random integer in [-r,r] 
-	'''
-	cryptogen = SystemRandom()  #takes entropy from operating system
-	return cryptogen.randrange(-r,r+1)
-
-def crypt_secure_matrix(r, n, m):
-	'''	
-		outputs: A numpy array with dimension nxm and integer elements in [-r,r]
-	'''
-	return np.array([[crypt_secure_randint(r) for j in range(m)] for i in range(n)])
-
-def hash_to_ternary():
-	pass
+import random_gen as rg
+n,m,k,d,q = 512,8786,80,1,134217757
+# q is a prime of order 2^27
 
 def to_integer_ring(ele, q):
 	'''
@@ -48,7 +32,7 @@ def matrix_to_Zq(M, q):
 			M[i][j] = to_integer_ring(M[i][j], q)
 	return M						
 
-def KeyGen(n, m, k, d, q):
+def KeyGen():
 	'''
 		input:
 		q : polynomial size prime number
@@ -61,10 +45,13 @@ def KeyGen(n, m, k, d, q):
 		T : the matrix AS ,it is used in the Verification of the signature
 
 	'''
-	S = crypt_secure_matrix(d, m, k)
-	A = crypt_secure_matrix((q-1)/2, n, m)
+	global n,m,k,d,q
+	S = rg.crypt_secure_matrix(d, m, k)
+	A = rg.crypt_secure_matrix((q-1)/2, n, m)
 	T = matrix_to_Zq(np.matmul(A, S), q)	
 	return S, A, T
+
+print KeyGen()[0]
 
 def Sign():
 	pass
