@@ -1,16 +1,13 @@
+'''
+Implementation of Lyubachevsky's Eurocrypt 2012 paper in Sage
+'''
+
 from sage.all import *
 from sage.stats.distributions.discrete_gaussian_lattice import DiscreteGaussianDistributionLatticeSampler
 import random
 import hashlib
 
 #SIS parameters
-'''
-n = 512
-q = 16815889 # random_prime(2**27, 2**28)
-d = 1
-k = 80
-m = 100 
-'''
 n = 128 
 q = 114356107
 d = 1
@@ -19,7 +16,6 @@ m = 1000
 M = 2.7
 
 b = 2*d + 1
-
 #discrete Gaussian
 sd = 300
 eta = 1.1
@@ -60,7 +56,7 @@ def sign(msg, A, S):
         if random.random() < exp(pxe/(2*(sd**2)))/M:
             return (z,c)
 
-def verify(msg, z, c, A, T):
+def verify(msg, z, c, A, T): 
     if z.norm() <= eta*sd*sqrt(m) and c == H((A*z-T*c, msg)):
         return True
     return False
