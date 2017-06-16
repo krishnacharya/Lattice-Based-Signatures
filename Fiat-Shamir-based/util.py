@@ -40,7 +40,14 @@ def crypt_secure_randint(r):
 		a cryptographiically secure random integer in [0,r-1] 
 	'''
 	cryptogen = SystemRandom()  #takes entropy from operating system
-	return cryptogen.randrange(0,r)		
+	return cryptogen.randrange(0,r)
+
+def crypt_secure_bit_array(l):
+	'''
+		input:
+		l: length of the list with 1's and 0's
+	'''
+	return [crypt_secure_randint(2) for i in range(l)]			
 
 def crypt_secure_matrix(r, n, m):
 	'''	

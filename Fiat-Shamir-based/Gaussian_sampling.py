@@ -5,6 +5,7 @@ are not native and memory is limited.
 '''
 from math import exp
 import random
+import util
 
 def Bernoulli_rv(c):
 	'''
@@ -14,9 +15,10 @@ def Bernoulli_rv(c):
 
 
 # Precomputation for Bernoulli_exp(x)
-f = 3 # fixed real 
+sigma = 17.829
+f = 635.74 # fixed real (when used in disc Gaussian sampling taken as 2*sigma^2) ***imp*** f can be a float in fact most of the times it is
 l = 64 # max number of bits in positive integer x
-c = [exp(-float(2**i) / f) for i in range(0, l)] # Ci stores exp(-2^i / f)
+c = [exp(-float(2**i) / f) for i in range(0, l)] # Ci stores exp(-2^i / f), 
 
 def Bernoulli_exp(x):
 	'''
@@ -57,6 +59,50 @@ def Bernoulli_cosh(x):
 		if not(B):			
 			return 0
 
-def disc_Gaussian_sampling():
-	pass
-	
+def D_sigma2_pos():
+	'''
+	Algorithm 10 from BLISS paper
+	This sampling should terminate in ~1.3 trials
+	'''
+	b = Bernoulli_rv(0.5)
+	if not b:
+		return 0	
+	i = 1
+	while(i < 12):
+		k = 2*i - 1
+		bc = util.crypt_secure_bit_array(k)
+		if bc[:k-1] == [0]*(k-1):
+			if not bc[k-1]:
+				return i
+		i += 1
+	return None		
+
+def D_ksigma2_pos(k):
+	'''
+	Algorithm 11 from the BLISS paper
+	On average this sampling takes 1.47 trials
+	i/p:
+	k: integer such that k*sigma2 is the std deviation
+	sigma2 is 0.849
+	'''
+	while(True):
+		x = D_sigma2_pos()
+		if(x != None):
+			y = util.crypt_secure_randint(k)
+			z = k*x + y
+			b = Bernoulli_exp(y*(y + 2*k*x)) # note global f has to be set to 2*sigma^2
+			if b:
+				return z
+
+def D_ksigma2_all_integers(k):
+	'''
+	The centred discrete Gaussian over integers with std deviation = k*sigma2
+	returns an Integer following the distribution
+	'''		
+	while(True):
+		z = D_ksigma2_pos(k)
+		if not z and random.random() < 0.5:
+			continue
+		bit = Bernoulli_rv(0.5)
+		return z if not bit else -z
+			
