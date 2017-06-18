@@ -32,28 +32,28 @@ def vector_to_Zq(v, q):
 		v[i] = to_integer_ring(v[i],q)
 	return v
 
-def crypt_secure_randint(r):
+def crypt_secure_randint(a, b):
 	'''
 		input: 
-		r : the range in which we want the random integer [0,r-1]
+		r : the range in which we want the random integer [a,b]
 		output:
-		a cryptographiically secure random integer in [0,r-1] 
+		a cryptographiically secure random integer in [a,b] 
 	'''
 	cryptogen = SystemRandom()  #takes entropy from operating system
-	return cryptogen.randrange(0,r)
+	return cryptogen.randrange(a, b+1)
 
 def crypt_secure_bit_array(l):
 	'''
 		input:
 		l: length of the list with 1's and 0's
 	'''
-	return [crypt_secure_randint(2) for i in range(l)]			
+	return [crypt_secure_randint(0, 1) for i in range(l)]			
 
-def crypt_secure_matrix(r, n, m):
+def crypt_secure_matrix(a, b, n, m):
 	'''	
-		outputs: A numpy array with dimension nxm and integer elements in [0,r-1]
+		outputs: A numpy array with dimension nxm and integer elements in [a,b]
 	'''
-	return np.array([[crypt_secure_randint(r) for j in range(m)] for i in range(n)])	
+	return np.array([[crypt_secure_randint(a, b) for j in range(m)] for i in range(n)])	
 
 def hash_to_baseb(matrix, message, b, k):
 	'''
