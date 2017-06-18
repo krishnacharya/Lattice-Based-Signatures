@@ -17,17 +17,7 @@ import random
 from math import exp
 from random import SystemRandom
 
-#SIS parameters
-n,m,k,d,q = 128,1000,20,1,114356107 # these parameters must be carefully adjusted
-b = 2*d + 1  # range for the Signing Key matrix
-M = 2.72   # the real value such that f(x) <= M * g(x), and an element from g(x) is accepted with probability f(x)/M*g(x)
-
-#Discrete Gaussian
-st_dev = 300
-D = DiscreteGaussianDistributionLatticeSampler(ZZ**m, st_dev) # discrete gaussian used to sample y which hides Sc, to prevent signing key leak
-eta = 1.1
-
-def KeyGen():
+def KeyGen(**kwargs):
 	'''
 		input:
 		q : polynomial size prime number
@@ -38,15 +28,14 @@ def KeyGen():
 		Signing Key S :  Matrix of dimension mxk with coefficients in 
 		Verification Key A : Matrix of dimension nxm with coefficients from 
 		T : the matrix AS ,it is used in the Verification of the signature
-
-	'''
-	#global n,m,k,d,q,b
-	S = util.crypt_secure_matrix(b, m, k)
-	A = util.crypt_secure_matrix(q, n, m)
-	T = np.matmul(A, S) % q	
+	'''	
+	q, n, m, k, d = kwargs['q'], kwargs['n'], kwargs['m'], kwargs['k'], kwargs['d']
+	S = util.crypt_secure_matrix(-d, d, m, k)
+	A = util.crypt_secure_matrix(-(q-1)/2, (q-1)/2, n, m)
+	T = util.matrix_to_Zq(np.matmul(A, S), q) 	
 	return S, A, T
 
-def Sign(msg, A, S):
+def Sign(**kwargs):
 	'''
 		i/p:
 		msg: string, which the sender wants to brodcast
@@ -55,28 +44,29 @@ def Sign(msg, A, S):
 
 		o/p:
 		(z,c) : signature		
-	'''
-	#global n,m,k,d,q,st_dev,M		
+	'''	
+	msg, A, S, q, n, m, k, d, sd, M = kwargs['msg'],kwargs['A'],kwargs['S'],kwargs['q'],kwargs['n'],kwargs['m'],kwargs['k'],kwargs['d'],kwargs['sd'],kwargs['M']	
+	D = DiscreteGaussianDistributionLatticeSampler(ZZ**m, sd)
 	count = 0
 	while(True):
 		y = np.array(D()) # discrete point in Zq^m
-		c = util.hash_to_baseb(np.matmul(A,y) % q, msg, 3, k)  # 3 because we want b/w 0,1,2 small coefficients in Zq
+		c = util.hash_to_baseb(util.vector_to_Zq(np.matmul(A,y), q), msg, 3, k)  # 3 because we want b/w 0,1,2 small coefficients in Zq
 		Sc = np.matmul(S,c)
-		z = Sc + y		
+		z = Sc + y #notice we didnt reduce (mod q)		
 		try:					
 			pxe = float(-2*z.dot(Sc) + Sc.dot(Sc))
-			val = exp(pxe / (2*st_dev**2)) / M							
+			val = exp(pxe / (2*sd**2)) / M							
 		except OverflowError:
 			print "OF"			
 			continue			
 		if(random.random() < min(val, 1.0)):
 			break
-		if(count > 20): # beyond 20 rejection sampling loops then end 
-			return 0.0,0.0
+		if(count > 4): # beyond 4 rejection sampling iterations are not expected in general 
+			raise ValueError("The number of rejection sampling iterations are more than expected")
 		count += 1								
-	return z,c
+	return z, c
 
-def Verify(msg, z, c, A, T):
+def Verify(**kwargs):
 	'''
 		Verification for the signature
 		i/p:
@@ -84,18 +74,36 @@ def Verify(msg, z, c, A, T):
 		(z,c): vectors in Zq, the signature
 		A  : numpy array, Verification Key dimension nxm
 		T : the matrix AS mod q ,it is used in the Verification of the signature
-	'''	
-	comp = eta * st_dev * np.sqrt(m)
-	# checks for norm of z being small and that H(Az-Tc mod q,msg) hashes to c			
-	if np.sqrt(z.dot(z)) <= comp and np.array_equal(c,util.hash_to_baseb(np.array(np.matmul(A,z) - np.matmul(T,c)) % q, msg, 3, k)):
+	'''
+	msg, z, c, A, T, sd, eta, m, k, q = kwargs['msg'], kwargs['z'], kwargs['c'], kwargs['A'], kwargs['T'], kwargs['sd'], kwargs['eta'], kwargs['m'], kwargs['k'], kwargs['q']
+	norm_bound = eta * sd * np.sqrt(m)
+	# checks for norm of z being small and that H(Az-Tc mod q,msg) hashes to c
+	vec = util.vector_to_Zq(np.array(np.matmul(A,z) - np.matmul(T,c)), q)
+	hashedList = util.hash_to_baseb(vec, msg, 3, k)
+	print hashedList, c 			
+	if np.sqrt(z.dot(z)) <= norm_bound and np.array_equal(c, hashedList):
 		return True
 	else:
 		return False
 
-def test():	
-	S, A, T =  KeyGen()
-	z, c = Sign("hellohow",A, S)
-	print Verify("hellohow",z,c,A,T)
-	print Verify("helooooo",z,c,A,T)
-	print Verify("jkaflkaf",z,c,A,T)
-test()	
+def testToy():
+	
+	#SIS parameters
+	n, m, k, d, q = 128, 1000, 20, 1, 114356107 # these parameters must be carefully adjusted
+	#n, m, k, d, q = 512, 8000, 80, 1, 114356107
+	#b = 2*d + 1  # range for the Signing Key matrix
+	M = 2.72   # the real value such that f(x) <= M * g(x), and an element from g(x) is accepted with probability f(x)/M*g(x)
+	
+	#Discrete Gaussian parameters
+	#sd = 31495
+	sd = 300	
+	eta = 1.1
+
+	#Computation
+	S, A, T =  KeyGen(q = q,n = n,m = m,k = k,d = d)
+	z, c = Sign(msg="hellohow", A = A, S = S, q = q, n = n, m = m, k = k, d = d, sd = sd, M = M)		
+	print Verify(msg="hellohow", z = z, c = c, A = A, T = T, sd = sd, eta = eta, m = m,k = k, q = q)
+	print Verify(msg="hellohow", z = z, c = c, A = A, T = T, sd = sd, eta = eta, m = m,k = k,q = q)
+	print Verify(msg="Magoo", z = z, c = c, A = A, T = T, sd = sd, eta = eta, m = m,k = k,q = q)
+
+testToy()
