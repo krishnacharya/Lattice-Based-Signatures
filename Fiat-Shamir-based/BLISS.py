@@ -8,7 +8,28 @@ from sage.all import *
 from sage.stats.distributions.discrete_gaussian_lattice import DiscreteGaussianDistributionLatticeSampler
 from math import exp
 import random
+import hashlib
 from numpy import linalg as LA
+
+def hash_iterative(s, n, k):
+	'''
+	Uses Hashing technique mentioned in BLISS pg 19
+	i/p: string s to be hashed to binary string of length n and weight k
+	'''	 
+	i = 0 # seed which increases till we get Bk^n
+	while(True):
+		Bk = [0] * n
+		I_val = int(hashlib.sha512(s + str(i)).hexdigest(), 16)
+		count = 0
+		while(I_val > 0):
+			pos = I_val % n
+			I_val /= n
+			if(Bk[pos] == 0):
+				Bk[pos] = 1
+				count += 1
+			if(count == k):
+				return np.array(Bk)
+		i += 1	
 
 def KeyGen(**kwargs):
 	'''
@@ -41,14 +62,14 @@ def Sign(**kwargs):
 	o/p:
 	z,c 
 	'''
-	msg, A, S, m, n, sd, q, M = kwargs['msg'], kwargs['A'], kwargs['S'], kwargs['m'], kwargs['n'], kwargs['sd'], kwargs['q'], kwargs['M']
+	msg, A, S, m, n, sd, q, M, kappa = kwargs['msg'], kwargs['A'], kwargs['S'], kwargs['m'], kwargs['n'], kwargs['sd'], kwargs['q'], kwargs['M'], kwargs['kappa']
 	m_bar = m + n
 	D = DiscreteGaussianDistributionLatticeSampler(ZZ**m_bar, sd)
 	count = 0
 	while(True):
 		y = np.array(D()) # m' x 1 
  		reduced_Ay = util.vector_to_Zq(np.matmul(A, y), 2*q)
-		c = util.hash_to_baseb(reduced_Ay, msg, 2, n) # still not the hash but this is test run		
+		c = hash_iterative(np.array_str(reduced_Ay) + msg, n, kappa) # still not the hash but this is test run		
 		b = util.crypt_secure_randint(0, 1)
 		Sc = np.matmul(S,c)
 		z = y + ((-1)**b) * Sc
@@ -67,20 +88,21 @@ def Sign(**kwargs):
 	return z, c
 
 def Verify(**kwargs):
-	msg, A, m, n, sd, q, eta, z, c = kwargs['msg'], kwargs['A'], kwargs['m'], kwargs['n'], kwargs['sd'], kwargs['q'], kwargs['eta'], kwargs['z'], kwargs['c']
+	msg, A, m, n, sd, q, eta, z, c, kappa = kwargs['msg'], kwargs['A'], kwargs['m'], kwargs['n'], kwargs['sd'], kwargs['q'], kwargs['eta'], kwargs['z'], kwargs['c'], kwargs['kappa']
 	B2 = eta*sd*np.sqrt(m)
 	reduced_prod = util.vector_to_Zq(np.matmul(A,z) + q*c, 2*q)
-	print np.sqrt(z.dot(z)),B2
-	print LA.norm(z,np.inf),float(q)/4
+	#print np.sqrt(z.dot(z)),B2
+	#print LA.norm(z,np.inf),float(q)/4
 	if np.sqrt(z.dot(z)) > B2  or LA.norm(z,np.inf) >= float(q)/4:		
 		return False	
-	if np.array_equal(c, util.hash_to_baseb(reduced_prod, msg, 2, n)):
+	if np.array_equal(c, hash_iterative(np.array_str(reduced_prod)+msg, n, kappa)):
 		return True
 	return False
 
 def test():
 	# Classical SIS parameters
 	n, m, alpha, q = 128, 872, 1, 114356107
+	kappa = 20
 	
 	#Discrete Gaussian Parameters
 	sd = 300
@@ -88,11 +110,12 @@ def test():
 
 	A, S = KeyGen(q = q,n = n,m = m,alpha = alpha)
 	#print np.array(np.matmul(A,S) - q*np.eye(n),dtype=float)/(2*q) #to test AS = q mod(2q)
-	z, c = Sign(msg = "Hello Bob",A = A,S = S,m = m,n = n,sd = sd,q = q,M = 3.0)
-	#print z
-	#print c
-	print Verify(msg = "Hello Bob", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c)
-	print Verify(msg = "Hello Robert", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c)
-	print Verify(msg = "Hello Roberto", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c)
-	print Verify(msg = "Hola Roberto", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c)
+	z, c = Sign(msg = "Hello Bob",A = A,S = S,m = m,n = n,sd = sd,q = q,M = 3.0,kappa = kappa)
+	print z
+	print c
+	print Verify(msg = "Hello Bob", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
+	print Verify(msg = "Hello Robert", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
+	print Verify(msg = "Hello Roberto", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
+	print Verify(msg = "Hola Roberto", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
+
 test()
