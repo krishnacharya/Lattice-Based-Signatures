@@ -30,23 +30,20 @@ def hash_iterative(s, n, k):
 			if(count == k):
 				return np.array(Bk)
 		i += 1
-	return "OF"
 
 def KeyGen(**kwargs):
 	'''
 	Appendix B of BLISS paper
-	m_bar = m + n
-
 	o/p:	
-	A: Public Key n x m' numpy array
-	S: Secret Key m'x n numpy array
+	A: Public Key n x m numpy array
+	S: Secret Key m x n numpy array
 	'''
 	q, n, m, alpha = kwargs['q'], kwargs['n'], kwargs['m'], kwargs['alpha']
+	m = m - n 
 	Aq_bar = util.crypt_secure_matrix(-(q-1)/2, (q-1)/2, n, m)
 	S_bar = util.crypt_secure_matrix(-(2)**alpha, (2)**alpha, m, n) # alpha is small enough, we need not reduce (modq)
-	S = np.vstack((S_bar, np.eye(n, dtype = int))) # dimension is m_bar x n, Elements are in Z mod(2q)
-	A = np.hstack((2*Aq_bar, q * np.eye(n, dtype = int) - 2*np.matmul(Aq_bar,S_bar))) # dimension is n x m_bar , Elements are in Z mod(2q)
-	#return util.matrix_to_Zq(A, 2*q), S, Aq_bar, S_bar
+	S = np.vstack((S_bar, np.eye(n, dtype = int))) # dimension is m x n, Elements are in Z mod(2q)
+	A = np.hstack((2*Aq_bar, q * np.eye(n, dtype = int) - 2*np.matmul(Aq_bar,S_bar))) # dimension is n x m , Elements are in Z mod(2q)	
 	return util.matrix_to_Zq(A, 2*q), S
 
 def KeyGen_test():
@@ -64,8 +61,7 @@ def Sign(**kwargs):
 	z,c 
 	'''
 	msg, A, S, m, n, sd, q, M, kappa = kwargs['msg'], kwargs['A'], kwargs['S'], kwargs['m'], kwargs['n'], kwargs['sd'], kwargs['q'], kwargs['M'], kwargs['kappa']
-	m_bar = m + n
-	D = DiscreteGaussianDistributionLatticeSampler(ZZ**m_bar, sd)
+	D = DiscreteGaussianDistributionLatticeSampler(ZZ**m, sd)
 	count = 0
 	while(True):
 		y = np.array(D()) # m' x 1 
@@ -81,7 +77,7 @@ def Sign(**kwargs):
 		except OverflowError:
 			print "OF"			
 			continue			
-		if(random.random() < min(val, 1.0)):
+		if(random.random() < min(val, 1.0)):			
 			break
 		if(count > 10): # beyond 4 rejection sampling iterations are not expected in general 
 			raise ValueError("The number of rejection sampling iterations are more than expected")
@@ -102,20 +98,26 @@ def Verify(**kwargs):
 
 def test():
 	# Classical SIS parameters
-	n, m, alpha, q = 128, 872, 1, 114356107
-	kappa = 20
+	#n, m, alpha, q = 128, 872, 1, 114356107
+	#kappa = 20
+
+	#BLISS 0 Toy parameters
+	n, m, alpha, q = 256,1000,1,7681
+	kappa = 12
 	
 	#Discrete Gaussian Parameters
 	sd = 300
-	eta = 1.2
-
+	eta = 1.1
+	# Rejection 
+	M = 3.0
 	A, S = KeyGen(q = q,n = n,m = m,alpha = alpha)
 	#print np.array(np.matmul(A,S) - q*np.eye(n),dtype=float)/(2*q) #to test AS = q mod(2q)
-	z, c = Sign(msg = "Hello Bob",A = A,S = S,m = m,n = n,sd = sd,q = q,M = 3.0,kappa = kappa)
-	print z
-	print c
+	z, c = Sign(msg = "Hello Bob",A = A,S = S,m = m,n = n,sd = sd,q = q,M = M,kappa = kappa)
+	#print len(z), z
+	#print len(c), c
 	print Verify(msg = "Hello Bob", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
 	print Verify(msg = "Hello Robert", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
 	print Verify(msg = "Hello Roberto", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
 	print Verify(msg = "Hola Roberto", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
+
 test()
