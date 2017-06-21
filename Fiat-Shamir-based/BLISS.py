@@ -29,8 +29,7 @@ def hash_iterative(s, n, k):
 				count += 1
 			if(count == k):
 				return np.array(Bk)
-		i += 1
-	return "OF"
+		i += 1	
 
 def KeyGen(**kwargs):
 	'''
@@ -118,4 +117,5 @@ def test():
 	print Verify(msg = "Hello Robert", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
 	print Verify(msg = "Hello Roberto", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
 	print Verify(msg = "Hola Roberto", A=A, m=m, n=n, sd=sd, q=q, eta=eta, z=z, c=c, kappa = kappa)
+
 test()
